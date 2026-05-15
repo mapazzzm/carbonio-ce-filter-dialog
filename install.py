@@ -88,6 +88,7 @@ def backup(path):
 # ─────────────────────────────────────────────────────────────────────────────
 
 RU_JSON_PATH = os.path.join(MAILS_UI_BASE, "i18n", "ru.json")
+EN_JSON_PATH = os.path.join(MAILS_UI_BASE, "i18n", "en.json")
 
 RU_KEYS = {
     # Confirmation dialog body text
@@ -102,6 +103,15 @@ RU_KEYS = {
         "<bold>{{count}} писем</bold> будет обработано в выбранной папке.",
     ("modals", "apply_filters", "apply_folder_other"):
         "<bold>{{count}} сообщение</bold> будет обработано в выбранной папке.",
+    # Confirmation dialog buttons (missing from ru.json — i18next falls back to defaultValue)
+    ("label", "yes"): "Да",
+    ("label", "no"):  "Нет",
+}
+
+EN_KEYS = {
+    # Confirmation dialog buttons (missing from en.json — needed for English locale)
+    ("label", "yes"): "Yes",
+    ("label", "no"):  "No",
 }
 
 def _get_nested(d, keys):
@@ -157,6 +167,48 @@ def cmd_rollback_ru_json():
     print(f"  ru.json: восстанавливаем из {latest}")
     shutil.copy2(latest, RU_JSON_PATH)
     print("  ru.json: ✓ восстановлено")
+
+def cmd_patch_en_json():
+    if not os.path.exists(EN_JSON_PATH):
+        print(f"  en.json: не найден по пути {EN_JSON_PATH}, пропускаем")
+        return False
+    with open(EN_JSON_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    missing = {k: v for k, v in EN_KEYS.items() if _get_nested(data, k) != v}
+    if not missing:
+        print("  en.json: все ключи уже на месте, пропускаем.")
+        return False
+    ts = time.strftime("%Y%m%d%H%M%S")
+    bak = EN_JSON_PATH + ".bak." + ts
+    shutil.copy2(EN_JSON_PATH, bak)
+    print(f"  Бэкап: {bak}")
+    for keys, value in missing.items():
+        _set_nested(data, keys, value)
+        print(f"  ✓ добавлен: {'.'.join(keys)}")
+    with open(EN_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    print("  ✓ en.json обновлён")
+    return True
+
+def cmd_check_en_json():
+    if not os.path.exists(EN_JSON_PATH):
+        print(f"  {'✗'}  en.json: не найден")
+        return False
+    with open(EN_JSON_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    ok = all(_get_nested(data, k) == v for k, v in EN_KEYS.items())
+    print(f"  {'✓' if ok else '✗'}  en.json: {'все ключи на месте' if ok else 'требует обновления'}")
+    return ok
+
+def cmd_rollback_en_json():
+    backups = sorted(glob.glob(EN_JSON_PATH + ".bak.*"), reverse=True)
+    if not backups:
+        print(f"  en.json: бэкап не найден, пропускаем")
+        return
+    latest = backups[0]
+    print(f"  en.json: восстанавливаем из {latest}")
+    shutil.copy2(latest, EN_JSON_PATH)
+    print("  en.json: ✓ восстановлено")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # The new webpack module (module 9999)
@@ -322,8 +374,9 @@ def cmd_check():
     print(f"  {'✓' if okS6b else '✗'}  initFld (Inbox): {'да' if okS6b else 'нет'}")
     print(f"  {'✓' if okS7  else '✗'}  локализация имени папки (S7): {'да' if okS7 else 'нет'}")
     okRu = cmd_check_ru_json()
+    okEn = cmd_check_en_json()
 
-    return ok388 and ok336 and okSetting and okS7 and okRu
+    return ok388 and ok336 and okSetting and okS7 and okRu and okEn
 
 def _apply_patches(chunk_path, patches, marker, already_msg):
     content = read(chunk_path)
@@ -417,8 +470,10 @@ def cmd_install():
     print()
     print("ru.json:")
     appliedRu = cmd_patch_ru_json()
+    print("en.json:")
+    appliedEn = cmd_patch_en_json()
 
-    if appliedSetting or applied388 or applied336 or appliedRu:
+    if appliedSetting or applied388 or applied336 or appliedRu or appliedEn:
         print("\n✓ Готово. Обновите страницу браузера (Ctrl+Shift+R).")
         print("  «Создать фильтр» появится:")
         print("  1. В тулбаре превью письма (⋮ → Ещё действия → Создать фильтр)")
@@ -429,6 +484,7 @@ def cmd_install():
 
 def cmd_rollback():
     cmd_rollback_ru_json()
+    cmd_rollback_en_json()
     for find_fn, label in [
         (find_chunk_settings, "chunk settings"),
         (find_chunk_388,      "chunk 388"),
