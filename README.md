@@ -69,6 +69,14 @@ The web UI auto-detects language from browser settings.
 
 ## Установка / Installation
 
+Одной командой / One-liner:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/main/install.py | sudo python3
+```
+
+Или клонировать репозиторий / Or clone the repository:
+
 ```bash
 git clone https://github.com/mapazzzm/carbonio-ce-filter-dialog.git
 cd carbonio-ce-filter-dialog
@@ -80,6 +88,12 @@ python3 install.py
 After installation, hard-refresh the browser: **Ctrl+Shift+R**
 
 ## Проверка / Check
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/main/install.py | sudo python3 - check
+```
+
+Или если клонирован репозиторий / Or if the repository is cloned:
 
 ```bash
 python3 install.py check
@@ -104,7 +118,8 @@ The script automatically backs up the original files before each patch.
 `apt upgrade carbonio-mails-ui` overwrites the JS files — re-apply the patch:
 
 ```bash
-python3 install.py check || python3 install.py
+curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/main/install.py | sudo python3 - check || \
+curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/main/install.py | sudo python3
 ```
 
 ---
