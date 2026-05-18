@@ -124,12 +124,30 @@ curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/
 
 ---
 
+## История изменений / Changelog
+
+### Фикс скроллбара в контекстном меню / Scrollbar fix in context menu
+
+Компонент `Dropdown` из Carbonio Design System имеет дефолтный `maxHeight: 50vh`. После добавления пункта «Создать фильтр» список пунктов правого клика превысил этот лимит — появилась полоса прокрутки.
+
+Фикс: добавлен проп `maxHeight:"100vh"` в оба вызова `Dropdown` контекстного меню в `336.*.chunk.js`.
+
+The Carbonio Design System `Dropdown` component has a default `maxHeight: 50vh`. Adding the "Create Filter" item pushed the right-click menu slightly over this limit, causing a scrollbar to appear.
+
+Fix: `maxHeight:"100vh"` is now passed to both context menu `Dropdown` instances in `336.*.chunk.js`.
+
+Если патч уже был установлен предыдущей версией скрипта, повторный запуск `install.py` применит фикс автоматически (инкрементальное обновление).
+
+If the patch was already installed by an older version of the script, re-running `install.py` will apply the fix automatically (incremental upgrade).
+
+---
+
 ## Как это работает / How it works
 
 Скрипт вносит точечные изменения в три минифицированных JS-файла пакета `carbonio-mails-ui`:
 
 - `388.*.chunk.js` — добавляет webpack-модуль 9999 и пункт в тулбар превью
-- `336.*.chunk.js` — добавляет тот же модуль и пункт в контекстное меню
+- `336.*.chunk.js` — добавляет тот же модуль и пункт в контекстное меню, устанавливает `maxHeight:"100vh"` для Dropdown
 - `mail-setting-view.*.chunk.js` — экспортирует внутренние компоненты диалогов (Ae, Jy) и добавляет поддержку предвыбора папки
 
 А также добавляет ключи переводов в `i18n/ru.json`.
