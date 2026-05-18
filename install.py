@@ -340,12 +340,22 @@ def build_patches_336():
     patchE_old = ",$,N,H])"
     patchE_new = ",$,N,H,Q])"
 
+    # DS Dropdown default maxHeight = 50vh — adding "Create Filter" pushes menu over this limit.
+    # Fix: pass maxHeight="100vh" to both context menu Dropdown instances.
+    patchF_old = 'createElement(o.Dropdown,{contextMenu:!0,items:de,display:"block",style:{width:"100%",height:"4rem"}'
+    patchF_new = 'createElement(o.Dropdown,{contextMenu:!0,maxHeight:"100vh",items:de,display:"block",style:{width:"100%",height:"4rem"}'
+
+    patchG_old = 'createElement(m.Dropdown,{contextMenu:!0,items:e,display:"block",style:{width:"100%",height:"4rem"}'
+    patchG_new = 'createElement(m.Dropdown,{contextMenu:!0,maxHeight:"100vh",items:e,display:"block",style:{width:"100%",height:"4rem"}'
+
     return [
         ("336: Добавить module 9999 в chunk",             patchA_old, patchA_new),
         ("336: Импорт CF в module 8264",                  patchB_old, patchB_new),
         ("336: Вызов хука create-filter",                 patchC_old, patchC_new),
         ("336: Добавить пункт в контекстное меню",        patchD_old, patchD_new),
         ("336: Добавить Q в зависимости useMemo",         patchE_old, patchE_new),
+        ("336: maxHeight 100vh для контекст. меню (de)",  patchF_old, patchF_new),
+        ("336: maxHeight 100vh для g-компонента",         patchG_old, patchG_new),
     ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -360,23 +370,25 @@ def cmd_check():
     c336     = read(chunk336)
     cSetting = read(chunkSetting)
 
-    ok388     = PATCH_MARKER_388 in c388
-    ok336     = PATCH_MARKER_336 in c336
-    okSetting = PATCH_MARKER_SETTINGS in cSetting
-    okJy      = "Jy:()=>j" in cSetting
-    okS6b     = "useState)(initFld)" in cSetting
-    okS7      = PATCH_MARKER_S7 in cSetting
+    ok388      = PATCH_MARKER_388 in c388
+    ok336      = PATCH_MARKER_336 in c336
+    okSetting  = PATCH_MARKER_SETTINGS in cSetting
+    okJy       = "Jy:()=>j" in cSetting
+    okS6b      = "useState)(initFld)" in cSetting
+    okS7       = PATCH_MARKER_S7 in cSetting
+    okMaxHeight = 'maxHeight:"100vh",items:de' in c336
 
-    print(f"{'✓' if ok388     else '✗'}  chunk 388      {'применён' if ok388     else 'НЕ применён'}: {chunk388}")
-    print(f"{'✓' if ok336     else '✗'}  chunk 336      {'применён' if ok336     else 'НЕ применён'}: {chunk336}")
-    print(f"{'✓' if okSetting else '✗'}  chunk settings {'применён' if okSetting else 'НЕ применён'}: {chunkSetting}")
-    print(f"  {'✓' if okJy  else '✗'}  Jy экспорт: {'да' if okJy else 'нет'}")
-    print(f"  {'✓' if okS6b else '✗'}  initFld (Inbox): {'да' if okS6b else 'нет'}")
-    print(f"  {'✓' if okS7  else '✗'}  локализация имени папки (S7): {'да' if okS7 else 'нет'}")
+    print(f"{'✓' if ok388      else '✗'}  chunk 388      {'применён' if ok388      else 'НЕ применён'}: {chunk388}")
+    print(f"{'✓' if ok336      else '✗'}  chunk 336      {'применён' if ok336      else 'НЕ применён'}: {chunk336}")
+    print(f"  {'✓' if okMaxHeight else '✗'}  maxHeight 100vh (нет скроллбара): {'да' if okMaxHeight else 'нет'}")
+    print(f"{'✓' if okSetting  else '✗'}  chunk settings {'применён' if okSetting  else 'НЕ применён'}: {chunkSetting}")
+    print(f"  {'✓' if okJy     else '✗'}  Jy экспорт: {'да' if okJy else 'нет'}")
+    print(f"  {'✓' if okS6b    else '✗'}  initFld (Inbox): {'да' if okS6b else 'нет'}")
+    print(f"  {'✓' if okS7     else '✗'}  локализация имени папки (S7): {'да' if okS7 else 'нет'}")
     okRu = cmd_check_ru_json()
     okEn = cmd_check_en_json()
 
-    return ok388 and ok336 and okSetting and okS7 and okRu and okEn
+    return ok388 and ok336 and okMaxHeight and okSetting and okS7 and okRu and okEn
 
 def _apply_patches(chunk_path, patches, marker, already_msg):
     content = read(chunk_path)
@@ -466,6 +478,26 @@ def cmd_install():
     )
     if applied336:
         print(f"✓ chunk 336 пропатчен")
+
+    # Incremental: add maxHeight:100vh if CF patch is applied but maxHeight is missing
+    # (upgrade path from versions before the scrollbar fix)
+    c336_now = read(chunk336)
+    if PATCH_MARKER_336 in c336_now and 'maxHeight:"100vh",items:de' not in c336_now:
+        print("\nchunk 336: добавляем maxHeight:100vh (фикс скроллбара контекстного меню)...")
+        mh_patches = [
+            ("336: maxHeight 100vh для контекст. меню (de)",
+             'createElement(o.Dropdown,{contextMenu:!0,items:de,display:"block",style:{width:"100%",height:"4rem"}',
+             'createElement(o.Dropdown,{contextMenu:!0,maxHeight:"100vh",items:de,display:"block",style:{width:"100%",height:"4rem"}'),
+            ("336: maxHeight 100vh для g-компонента",
+             'createElement(m.Dropdown,{contextMenu:!0,items:e,display:"block",style:{width:"100%",height:"4rem"}',
+             'createElement(m.Dropdown,{contextMenu:!0,maxHeight:"100vh",items:e,display:"block",style:{width:"100%",height:"4rem"}'),
+        ]
+        applied_mh = _apply_patches(
+            chunk336, mh_patches, 'maxHeight:"100vh",items:de',
+            "chunk 336: maxHeight уже применён."
+        )
+        if applied_mh:
+            print("✓ chunk 336 maxHeight пропатчен")
 
     print()
     print("ru.json:")
