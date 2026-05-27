@@ -13,16 +13,16 @@ import re
 import sys
 
 COLORS = [
-    ("Красный",     "red"),
-    ("Оранжевый",   "orange"),
-    ("Жёлтый",      "yellow"),
-    ("Зелёный",     "green"),
-    ("Бирюзовый",   "cyan"),
-    ("Синий",       "blue"),
-    ("Фиолетовый",  "purple"),
-    ("Розовый",     "pink"),
-    ("Коричневый",  "brown"),
-    ("Серый",       "gray"),
+    ("Красный",     "Red"),
+    ("Оранжевый",   "Orange"),
+    ("Жёлтый",      "Yellow"),
+    ("Зелёный",     "Green"),
+    ("Бирюзовый",   "Cyan"),
+    ("Синий",       "Blue"),
+    ("Фиолетовый",  "Purple"),
+    ("Розовый",     "Pink"),
+    ("Коричневый",  "Brown"),
+    ("Серый",       "Gray"),
 ]
 
 REQUIRE = ('require ["fileinto", "copy", "reject", "tag", "flag", "variables", '
@@ -230,14 +230,14 @@ def main():
         sys.exit(1)
 
     # 5. Цвет
-    print("\nДоступные цвета:")
+    print("\nДоступные цвета / Available colors:")
     for i, (name_ru, name_en) in enumerate(COLORS, 1):
-        print(f"  {i:2d}. {name_ru}")
-    color_n = ask("Номер цвета")
+        print(f"  {i:2d}. {name_ru} ({name_en})")
+    color_n = ask("Номер цвета / Color number")
     try:
-        color_ru, _ = COLORS[int(color_n) - 1]
+        color_ru, color_en = COLORS[int(color_n) - 1]
     except (ValueError, IndexError):
-        print("Некорректный номер цвета.")
+        print("Некорректный номер цвета / Invalid color number.")
         sys.exit(1)
 
     # 6. Проверить — не существует ли уже такое правило
@@ -248,12 +248,12 @@ def main():
             sys.exit(0)
 
     # 7. Подтверждение
-    print(f"\nБудет применено:")
-    print(f"  Домен:      {target_domain}")
-    print(f"  От домена:  {from_domain}")
-    print(f"  Цвет:       {color_ru}")
-    print(f"  Фильтр не виден пользователям (zimbraMailAdminSieveScriptBefore)")
-    confirm = ask("Применить?", options=["да", "нет"], default="да")
+    print(f"\nБудет применено / Will apply:")
+    print(f"  Домен / Domain:          {target_domain}")
+    print(f"  От домена / From domain: {from_domain}")
+    print(f"  Цвет / Color:            {color_ru} ({color_en})")
+    print(f"  Фильтр не виден пользователям / Not visible to users (zimbraMailAdminSieveScriptBefore)")
+    confirm = ask("Применить? / Apply?", options=["да", "нет"], default="да")
     if confirm != "да":
         print("Отменено.")
         sys.exit(0)
@@ -263,8 +263,9 @@ def main():
     rc, err = set_script(target_domain, new_script)
     if rc == 0:
         print(f"\n✓ Правило применено для {target_domain}.")
-        print(f"  Письма от *@{from_domain} будут помечены тегом «{color_ru}».")
+        print(f"  Письма от *@{from_domain} будут помечены тегом «{color_ru}» ({color_en}).")
         print(f"\nДля удаления запустите скрипт повторно и выберите «удалить».")
+        print(f"To remove: re-run the script and choose «удалить».")
     else:
         print(f"\n✗ Ошибка при записи: {err}")
         sys.exit(1)
