@@ -1,6 +1,6 @@
 # carbonio-ce-filter-dialog
 
-[Русский](#русский) | [English](#english)
+[🇷🇺 Русский](#русский) | [<sup>en</sup> English](#english)
 
 ---
 
