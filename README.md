@@ -157,6 +157,68 @@ curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/
 
 ---
 
+## domain_color_filter.py
+
+Отдельный скрипт для управления цветовым выделением писем **на уровне домена** без вмешательства в клиентский JS.
+
+### Принцип работы
+
+Использует `zimbraMailAdminSieveScriptBefore` — административный sieve-скрипт, который Carbonio/Zimbra применяет к входящим письмам **до** пользовательских фильтров. Скрипт устанавливается на домен целиком, **не виден пользователям** и не конфликтует с их собственными фильтрами.
+
+При срабатывании фильтра к письму добавляется тег с именем цвета («Красный», «Зелёный» и т. д.). Если установлен патч `install.py` из этого репозитория, такие теги визуально подсвечивают строку письма цветным фоном в интерфейсе.
+
+### Возможности
+
+- Интерактивно запрашивает целевой домен, домен-отправитель и цвет
+- Проверяет, установлен ли уже аналогичный фильтр
+- При повторном запуске предлагает добавить ещё один фильтр или удалить существующий
+- Поддерживает несколько правил на одном домене
+
+### Запуск
+
+```bash
+python3 domain_color_filter.py
+```
+
+Скрипт запускается от `root` на сервере Carbonio. Внутри использует `su - zextras -c "zmprov ..."`.
+
+### Пример сеанса
+
+```
+Домен Carbonio (для которого применяем): example.com
+Домен-отправитель (условие «from» contains): external.com
+
+Доступные цвета:
+   1. Красный
+   2. Оранжевый
+   ...
+   4. Зелёный
+   ...
+Номер цвета: 4
+
+Будет применено:
+  Домен:      example.com
+  От домена:  external.com
+  Цвет:       Зелёный
+  Фильтр не виден пользователям (zimbraMailAdminSieveScriptBefore)
+Применить? [Да/нет]: да
+
+✓ Правило применено для example.com.
+  Письма от *@external.com будут помечены тегом «Зелёный».
+```
+
+### Удаление фильтра
+
+Повторный запуск скрипта — если правила найдены, предлагается действие «удалить».
+
+### Ограничения
+
+- `zimbraMailAdminSieveScriptBefore` помечен устаревшим начиная с Zimbra 8.7.8; в актуальных версиях Carbonio CE 26.x атрибут принимается LDAP, но поведение при доставке следует проверить
+- Фильтр работает только для **входящей** почты (delivery-time sieve), не применяется к уже полученным письмам
+- Тег-цвет применяется к письму навсегда (пока тег не снят вручную или фильтром пользователя)
+
+---
+
 ## English
 
 A patch for **Carbonio CE** (Zextras) that adds two new features to the mail interface:
@@ -307,3 +369,65 @@ Also fixed a Carbonio bug in `917.*.chunk.js`: `optimisticallyHandleMessageActio
 
 **Scrollbar fix in context menu**
 The Carbonio Design System `Dropdown` component has a default `maxHeight: 50vh`. After adding the "Create Filter" item the right-click menu exceeded this limit and showed a scrollbar. Fix: `maxHeight:"100vh"` is now passed to both context menu Dropdown instances in `336.*.chunk.js`.
+
+---
+
+## domain_color_filter.py
+
+A standalone script for managing **domain-level** color tagging of incoming messages — no JS patching required.
+
+### How it works
+
+Uses `zimbraMailAdminSieveScriptBefore` — an administrative sieve script that Carbonio/Zimbra applies to incoming messages **before** any user filters. The script is set at the domain level, is **not visible to users**, and does not conflict with their personal filters.
+
+When the filter matches, a color tag ("Красный", "Зелёный", etc.) is added to the message. If the `install.py` patch from this repository is also installed, those tags visually highlight the message row with a colored background in the UI.
+
+### Features
+
+- Interactively prompts for target domain, sender domain and color
+- Detects whether a matching filter already exists
+- On re-run: offers to add another rule or delete an existing one
+- Supports multiple rules on the same domain
+
+### Usage
+
+```bash
+python3 domain_color_filter.py
+```
+
+Run as `root` on the Carbonio server. The script calls `su - zextras -c "zmprov ..."` internally.
+
+### Example session
+
+```
+Target Carbonio domain: example.com
+Sender domain (condition «from» contains): external.com
+
+Available colors:
+   1. Красный  (Red)
+   2. Оранжевый (Orange)
+   ...
+   4. Зелёный  (Green)
+   ...
+Color number: 4
+
+Will apply:
+  Domain:       example.com
+  From domain:  external.com
+  Color:        Зелёный
+  Filter is NOT visible to users (zimbraMailAdminSieveScriptBefore)
+Apply? [Yes/no]: yes
+
+✓ Rule applied for example.com.
+  Messages from *@external.com will be tagged «Зелёный».
+```
+
+### Removing a filter
+
+Re-run the script — if rules are found, the "delete" action is offered.
+
+### Limitations
+
+- `zimbraMailAdminSieveScriptBefore` has been deprecated since Zimbra 8.7.8; in current Carbonio CE 26.x the attribute is accepted by LDAP, but delivery-time behavior should be verified
+- The filter applies to **incoming** mail only (delivery-time sieve); already-received messages are not affected
+- The color tag is permanent on the message until removed manually or by a user filter
