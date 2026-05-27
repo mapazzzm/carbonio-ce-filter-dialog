@@ -41,9 +41,9 @@
 |------|---|------|---|
 | Красный | 🔴 | Синий | 🔵 |
 | Оранжевый | 🟠 | Фиолетовый | 🟣 |
-| Жёлтый | 🟡 | Розовый | 🩷 |
+| Жёлтый | 🟡 | Розовый | 🌸 |
 | Зелёный | 🟢 | Коричневый | 🟤 |
-| Бирюзовый | 🩵 | Серый | ⚪ |
+| Бирюзовый | 💠 | Серый | ⚪ |
 
 Цвет хранится как тег с именем цвета («Красный», «Синий» и т. д.). Теги с цветами:
 - видны в панели тегов с соответствующим цветным кружком Zimbra
@@ -194,9 +194,9 @@ When selected, a 10-color palette appears. Messages matching the filter conditio
 |-------|---|-------|---|
 | Red | 🔴 | Blue | 🔵 |
 | Orange | 🟠 | Purple | 🟣 |
-| Yellow | 🟡 | Pink | 🩷 |
+| Yellow | 🟡 | Pink | 🌸 |
 | Green | 🟢 | Brown | 🟤 |
-| Cyan | 🩵 | Gray | ⚪ |
+| Cyan | 💠 | Gray | ⚪ |
 
 The color is stored as a tag named after the color ("Красный", "Синий", etc.). Color tags:
 - appear in the tag panel with a matching Zimbra color dot
