@@ -42,18 +42,21 @@ def get_current_script(domain):
     out, err, rc = zmprov("zmprov", "gd", domain, "zimbraMailAdminSieveScriptBefore")
     if rc != 0:
         return None, err
-    script = ""
+    lines = out.splitlines()
+    script_lines = []
     in_attr = False
-    for line in out.splitlines():
+    for line in lines:
         if line.startswith("zimbraMailAdminSieveScriptBefore:"):
-            script = line[len("zimbraMailAdminSieveScriptBefore:"):].lstrip()
+            first = line[len("zimbraMailAdminSieveScriptBefore:"):].lstrip()
+            if first:
+                script_lines.append(first)
             in_attr = True
         elif in_attr:
-            if line.startswith(" "):
-                script += "\n" + line.strip()
-            else:
+            # Стоп только на другом LDAP-атрибуте вида "attrName: value"
+            if re.match(r'^[a-zA-Z][a-zA-Z0-9-]+:', line):
                 break
-    return script.strip(), None
+            script_lines.append(line)
+    return "\n".join(script_lines).strip(), None
 
 
 def set_script(domain, script):
@@ -205,6 +208,10 @@ def main():
                     sys.exit(1)
             comment_line, _, _ = to_delete
             new_script = remove_rule(script, comment_line)
+            # Если правил не осталось — очистить атрибут полностью
+            remaining = parse_existing_rules(new_script)
+            if not remaining:
+                new_script = ""
             print(f"\nУдаляю: {comment_line[len(RULE_COMMENT_PREFIX):].strip()}")
             rc, err = set_script(target_domain, new_script)
             if rc == 0:
