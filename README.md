@@ -186,25 +186,36 @@ python3 domain_color_filter.py
 
 ```
 Домен Carbonio (для которого применяем): example.com
+Получаю текущий zimbraMailAdminSieveScriptBefore для example.com...
+  domain-color-filter правил не найдено.
+
 Домен-отправитель (условие «from» contains): external.com
 
-Доступные цвета:
-   1. Красный
-   2. Оранжевый
-   ...
-   4. Зелёный
-   ...
-Номер цвета: 4
+Доступные цвета / Available colors:
+   1. Красный (Red)
+   2. Оранжевый (Orange)
+   3. Жёлтый (Yellow)
+   4. Зелёный (Green)
+   5. Бирюзовый (Cyan)
+   6. Синий (Blue)
+   7. Фиолетовый (Purple)
+   8. Розовый (Pink)
+   9. Коричневый (Brown)
+  10. Серый (Gray)
+Номер цвета / Color number: 4
 
-Будет применено:
-  Домен:      example.com
-  От домена:  external.com
-  Цвет:       Зелёный
-  Фильтр не виден пользователям (zimbraMailAdminSieveScriptBefore)
-Применить? [Да/нет]: да
+Будет применено / Will apply:
+  Домен / Domain:          example.com
+  От домена / From domain: external.com
+  Цвет / Color:            Зелёный (Green)
+  Фильтр не виден пользователям / Not visible to users (zimbraMailAdminSieveScriptBefore)
+Применить? / Apply? [ДА/нет]: да
 
 ✓ Правило применено для example.com.
-  Письма от *@external.com будут помечены тегом «Зелёный».
+  Письма от *@external.com будут помечены тегом «Зелёный» (Green).
+
+Для удаления запустите скрипт повторно и выберите «удалить».
+To remove: re-run the script and choose «удалить».
 ```
 
 ### Удаление фильтра
@@ -400,26 +411,37 @@ Run as `root` on the Carbonio server. The script calls `su - zextras -c "zmprov 
 ### Example session
 
 ```
-Target Carbonio domain: example.com
-Sender domain (condition «from» contains): external.com
+Домен Carbonio (для которого применяем): example.com
+Получаю текущий zimbraMailAdminSieveScriptBefore для example.com...
+  domain-color-filter правил не найдено.
 
-Available colors:
-   1. Красный  (Red)
+Домен-отправитель (условие «from» contains): external.com
+
+Доступные цвета / Available colors:
+   1. Красный (Red)
    2. Оранжевый (Orange)
-   ...
-   4. Зелёный  (Green)
-   ...
-Color number: 4
+   3. Жёлтый (Yellow)
+   4. Зелёный (Green)
+   5. Бирюзовый (Cyan)
+   6. Синий (Blue)
+   7. Фиолетовый (Purple)
+   8. Розовый (Pink)
+   9. Коричневый (Brown)
+  10. Серый (Gray)
+Номер цвета / Color number: 4
 
-Will apply:
-  Domain:       example.com
-  From domain:  external.com
-  Color:        Зелёный
-  Filter is NOT visible to users (zimbraMailAdminSieveScriptBefore)
-Apply? [Yes/no]: yes
+Будет применено / Will apply:
+  Домен / Domain:          example.com
+  От домена / From domain: external.com
+  Цвет / Color:            Зелёный (Green)
+  Фильтр не виден пользователям / Not visible to users (zimbraMailAdminSieveScriptBefore)
+Применить? / Apply? [ДА/нет]: да
 
-✓ Rule applied for example.com.
-  Messages from *@external.com will be tagged «Зелёный».
+✓ Правило применено для example.com.
+  Письма от *@external.com будут помечены тегом «Зелёный» (Green).
+
+Для удаления запустите скрипт повторно и выберите «удалить».
+To remove: re-run the script and choose «удалить».
 ```
 
 ### Removing a filter
