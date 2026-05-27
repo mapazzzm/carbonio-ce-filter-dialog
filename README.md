@@ -1,6 +1,6 @@
 # carbonio-ce-filter-dialog
 
-[🇷🇺 Русский](#русский) | [EN English](#english)
+[Русский](#русский) | [English](#english)
 
 ---
 
@@ -134,6 +134,7 @@ curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/
 | `336.*.chunk.js` | Добавляет модуль 9999 и пункт в контекстное меню; добавляет подсветку строк сообщений и скрывает иконку цветового тега |
 | `mail-setting-view.*.chunk.js` | Экспортирует компоненты диалогов (Ae, Jy); добавляет действие «Выделять цветом» с палитрой цветов; создаёт теги через SOAP API |
 | `folder-panel-view.*.chunk.js` | Добавляет подсветку строк бесед (conversation view) |
+| `917.*.chunk.js` | Исправляет `i.tags is not iterable` при оптимистичном тегировании сообщений без тегов |
 
 **Файлы локализации:**
 
@@ -146,8 +147,10 @@ curl -fsSL https://raw.githubusercontent.com/mapazzzm/carbonio-ce-filter-dialog/
 
 ### История изменений
 
-**Добавлено «Выделять цветом»** *(текущая версия)*
+**Добавлено «Выделять цветом»** + **Фикс `i.tags is not iterable`** *(текущая версия)*
 Интегрирована функция подсветки писем цветом: новое действие в редакторе фильтров, поддержка в списке сообщений и бесед, полная локализация ru/en.
+
+Одновременно исправлен баг Carbonio в `917.*.chunk.js`: функция `optimisticallyHandleMessageActions` падала с `TypeError: i.tags is not iterable` при операции тегирования сообщения, у которого ещё не было тегов (`i.tags === undefined`). Фикс: добавлен fallback `i.tags||[]` в двух местах операций TAG/UNTAG.
 
 **Фикс скроллбара в контекстном меню**
 Компонент `Dropdown` из Carbonio Design System имеет дефолтный `maxHeight: 50vh`. После добавления пункта «Создать фильтр» список пунктов правого клика превышал этот лимит и появлялась полоса прокрутки. Фикс: добавлен `maxHeight:"100vh"` в оба Dropdown контекстного меню в `336.*.chunk.js`.
@@ -284,6 +287,7 @@ The script makes surgical replacements in four minified JS files and two JSON lo
 | `336.*.chunk.js` | Adds module 9999 and item to context menu; adds message row highlight and hides color tag icon |
 | `mail-setting-view.*.chunk.js` | Exports dialog components (Ae, Jy); adds "Highlight with color" action with color picker; creates tags via SOAP API |
 | `folder-panel-view.*.chunk.js` | Adds conversation row highlight (conversation view) |
+| `917.*.chunk.js` | Fixes `i.tags is not iterable` in optimistic tag update for messages with no prior tags |
 
 **Locale files:**
 
@@ -296,8 +300,10 @@ No external dependencies — all React components and the Carbonio Design System
 
 ### Changelog
 
-**Added "Highlight with color"** *(current version)*
+**Added "Highlight with color"** + **Fix `i.tags is not iterable`** *(current version)*
 Integrated color-based message highlighting: new action in the filter editor, support in message list and conversation list, full ru/en localization.
+
+Also fixed a Carbonio bug in `917.*.chunk.js`: `optimisticallyHandleMessageActions` threw `TypeError: i.tags is not iterable` when tagging a message that had no prior tags (`i.tags === undefined`). Fix: added `i.tags||[]` fallback in both TAG and UNTAG branches.
 
 **Scrollbar fix in context menu**
 The Carbonio Design System `Dropdown` component has a default `maxHeight: 50vh`. After adding the "Create Filter" item the right-click menu exceeded this limit and showed a scrollbar. Fix: `maxHeight:"100vh"` is now passed to both context menu Dropdown instances in `336.*.chunk.js`.

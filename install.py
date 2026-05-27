@@ -32,6 +32,9 @@ PATCH_MARKER_336      = "CF=a(9999)"
 PATCH_MARKER_SETTINGS = "useState)(initFld)"
 PATCH_MARKER_S7       = "N.VN)({folderName:g.name})"
 
+# ── bugfix markers ────────────────────────────────────────────────────────────
+PATCH_MARKER_917      = "i.tags||[]"   # fix: i.tags is not iterable on TAG/UNTAG
+
 # ── color-filter constants & markers ─────────────────────────────────────────
 CC_COLORS_JS = (
     '["rgba(220,80,80,0.18)","rgba(220,140,50,0.18)","rgba(200,200,50,0.18)",'
@@ -89,6 +92,13 @@ def find_chunk_fpv():
         if chunks:
             return chunks[0]
     die("Не найден folder-panel-view.*.chunk.js в " + MAILS_UI_BASE)
+
+def find_chunk_917():
+    for d in _find_version_dirs():
+        chunks = glob.glob(os.path.join(d, "917.*.chunk.js"))
+        if chunks:
+            return chunks[0]
+    die("Не найден 917.*.chunk.js в " + MAILS_UI_BASE)
 
 def die(msg):
     print("ОШИБКА:", msg, file=sys.stderr)
@@ -442,6 +452,20 @@ def build_patches_fpv():
     ]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Patches for chunk 917 — bugfix: i.tags is not iterable on TAG/UNTAG
+# Root cause: optimisticallyHandleMessageActions spreads i.tags without null
+# guard. Messages that never had tags have i.tags=undefined → TypeError.
+# Triggered by color-filter tagging messages that previously had no tags.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_patches_917():
+    return [
+        ("917: i.tags||[] guard in TAG/UNTAG optimistic update",
+         't===S.qn.TAG&&n?i.tags=[...i.tags,n]:t===S.qn.UNTAG&&n&&(i.tags=(0,c.filter)(i.tags,e=>e!==n))',
+         't===S.qn.TAG&&n?i.tags=[...(i.tags||[]),n]:t===S.qn.UNTAG&&n&&(i.tags=(0,c.filter)(i.tags||[],e=>e!==n))'),
+    ]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Apply helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -487,10 +511,12 @@ def cmd_check():
     chunk336     = find_chunk_336()
     chunkSetting = find_chunk_settings()
     chunkFpv     = find_chunk_fpv()
+    chunk917     = find_chunk_917()
     c388     = read(chunk388)
     c336     = read(chunk336)
     cSetting = read(chunkSetting)
     cFpv     = read(chunkFpv)
+    c917     = read(chunk917)
 
     # create-filter
     ok388      = PATCH_MARKER_388      in c388
@@ -507,6 +533,9 @@ def cmd_check():
     okCC336      = CC_MARKER_336       in c336
     okCCFpv      = CC_MARKER_FPV       in cFpv
 
+    # bugfixes
+    ok917        = PATCH_MARKER_917    in c917
+
     print(f"{'✓' if ok388      else '✗'}  chunk 388      {'применён' if ok388      else 'НЕ применён'}: {chunk388}")
     print(f"{'✓' if ok336      else '✗'}  chunk 336      {'применён' if ok336      else 'НЕ применён'}: {chunk336}")
     print(f"  {'✓' if okMaxHeight else '✗'}  maxHeight 100vh (нет скроллбара): {'да' if okMaxHeight else 'нет'}")
@@ -518,12 +547,13 @@ def cmd_check():
     print(f"  {'✓' if okCCLocalize else '✗'}  tcc_ локализация Select label: {'да' if okCCLocalize else 'нет'}")
     print(f"{'✓' if okCC336      else '✗'}  color-filter/336      {'применён' if okCC336      else 'НЕ применён'}")
     print(f"{'✓' if okCCFpv      else '✗'}  color-filter/fpv      {'применён' if okCCFpv      else 'НЕ применён'}: {chunkFpv}")
+    print(f"{'✓' if ok917        else '✗'}  bugfix/917            {'применён' if ok917        else 'НЕ применён'}: {chunk917}")
     okRu = cmd_check_json(RU_JSON_PATH, RU_KEYS, "ru")
     okEn = cmd_check_json(EN_JSON_PATH, EN_KEYS, "en")
 
     return (ok388 and ok336 and okMaxHeight and okSetting and okS7
             and okCCSettings and okCCLocalize and okCC336 and okCCFpv
-            and okRu and okEn)
+            and ok917 and okRu and okEn)
 
 
 def cmd_install():
@@ -631,6 +661,19 @@ def cmd_install():
     else:
         print("color-filter/fpv: патч уже применён, пропускаем.")
 
+    # ── bugfix: 917 chunk ─────────────────────────────────────────────────────
+    chunk917 = find_chunk_917()
+    print()
+    print(f"chunk 917 (bugfix): {chunk917}")
+    c917 = read(chunk917)
+    if PATCH_MARKER_917 not in c917:
+        applied_917 = _apply_patches(chunk917, build_patches_917(), PATCH_MARKER_917,
+                                      "bugfix/917: уже применён.")
+        if applied_917:
+            print("✓ chunk 917 (bugfix i.tags) пропатчен")
+    else:
+        print("bugfix/917: патч уже применён, пропускаем.")
+
     # ── i18n ──────────────────────────────────────────────────────────────────
     print()
     print("ru.json:")
@@ -652,6 +695,7 @@ def cmd_rollback():
         (find_chunk_388,      "chunk 388"),
         (find_chunk_336,      "chunk 336"),
         (find_chunk_fpv,      "chunk folder-panel-view"),
+        (find_chunk_917,      "chunk 917"),
     ]:
         chunk = find_fn()
         backups = sorted(glob.glob(chunk + ".bak.*"), reverse=True)
