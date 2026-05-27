@@ -185,11 +185,11 @@ python3 domain_color_filter.py
 ### Пример сеанса
 
 ```
-Домен Carbonio (для которого применяем): gucb.ru
-Получаю текущий zimbraMailAdminSieveScriptBefore для gucb.ru...
+Домен Carbonio (для которого применяем): example.com
+Получаю текущий zimbraMailAdminSieveScriptBefore для example.com...
   domain-color-filter правил не найдено.
 
-Домен-отправитель (условие «from» contains): cbmail.ru
+Домен-отправитель (условие «from» contains): external.com
 
 Доступные цвета / Available colors:
    1. Красный (Red)
@@ -205,14 +205,14 @@ python3 domain_color_filter.py
 Номер цвета / Color number: 4
 
 Будет применено / Will apply:
-  Домен / Domain:          gucb.ru
-  От домена / From domain: cbmail.ru
+  Домен / Domain:          example.com
+  От домена / From domain: external.com
   Цвет / Color:            Зелёный (Green)
   Фильтр не виден пользователям / Not visible to users (zimbraMailAdminSieveScriptBefore)
 Применить? / Apply? [ДА/нет]: да
 
-✓ Правило применено для gucb.ru.
-  Письма от *@cbmail.ru будут помечены тегом «Зелёный» (Green).
+✓ Правило применено для example.com.
+  Письма от *@external.com будут помечены тегом «Зелёный» (Green).
 
 Для удаления запустите скрипт повторно и выберите «удалить».
 To remove: re-run the script and choose «удалить».
@@ -411,11 +411,11 @@ Run as `root` on the Carbonio server. The script calls `su - zextras -c "zmprov 
 ### Example session
 
 ```
-Домен Carbonio (для которого применяем): gucb.ru
-Получаю текущий zimbraMailAdminSieveScriptBefore для gucb.ru...
+Домен Carbonio (для которого применяем): example.com
+Получаю текущий zimbraMailAdminSieveScriptBefore для example.com...
   domain-color-filter правил не найдено.
 
-Домен-отправитель (условие «from» contains): cbmail.ru
+Домен-отправитель (условие «from» contains): external.com
 
 Доступные цвета / Available colors:
    1. Красный (Red)
@@ -431,14 +431,14 @@ Run as `root` on the Carbonio server. The script calls `su - zextras -c "zmprov 
 Номер цвета / Color number: 4
 
 Будет применено / Will apply:
-  Домен / Domain:          gucb.ru
-  От домена / From domain: cbmail.ru
+  Домен / Domain:          example.com
+  От домена / From domain: external.com
   Цвет / Color:            Зелёный (Green)
   Фильтр не виден пользователям / Not visible to users (zimbraMailAdminSieveScriptBefore)
 Применить? / Apply? [ДА/нет]: да
 
-✓ Правило применено для gucb.ru.
-  Письма от *@cbmail.ru будут помечены тегом «Зелёный» (Green).
+✓ Правило применено для example.com.
+  Письма от *@external.com будут помечены тегом «Зелёный» (Green).
 
 Для удаления запустите скрипт повторно и выберите «удалить».
 To remove: re-run the script and choose «удалить».
