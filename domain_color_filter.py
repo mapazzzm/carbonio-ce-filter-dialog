@@ -70,6 +70,10 @@ def set_script(domain, script):
         f.write("SIEVEEOF\n")
         f.write(f"zmprov md '{domain}' zimbraMailAdminSieveScriptBefore \"$(cat {valfile})\"\n")
         f.write(f"rm -f {valfile}\n")
+    # zextras runs this script via `su -`; it must be world-readable regardless
+    # of root's umask. If zextras can't read it the heredoc never runs and the
+    # attribute can be overwritten with an empty value (observed data loss).
+    os.chmod(shfile, 0o644)
     r = subprocess.run(["su", "-", "zextras", "-c", f"bash {shfile}"],
                        capture_output=True, text=True)
     os.unlink(shfile)
