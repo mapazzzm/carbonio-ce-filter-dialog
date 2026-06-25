@@ -10,6 +10,9 @@ Adds "Create Filter" / "Создать фильтр" + "Highlight with color" / 
        No  → "Filter created" snackbar
   5. "Highlight with color" action in filter editor (mail-setting-view + 336 + folder-panel-view)
   6. Patches ru.json and en.json with translations
+  7. Bugfix: lets you disable an unconditional filter (forward-all) — Carbonio's
+     backend can't deactivate a rule with no condition (nothing to wrap in
+     `disabled_if`); the patch represents "disabled" via a hidden `trueTest`.
 
 Usage:
     python3 install.py          — apply patch
@@ -34,6 +37,7 @@ PATCH_MARKER_S7       = "N.VN)({folderName:g.name})"
 
 # ── bugfix markers ────────────────────────────────────────────────────────────
 PATCH_MARKER_917      = "i.tags||[]"   # fix: i.tags is not iterable on TAG/UNTAG
+FF_MARKER_SETTINGS    = "__cuFilterFix"  # fix: can't disable an unconditional filter
 
 # ── color-filter constants & markers ─────────────────────────────────────────
 CC_COLORS_JS = (
@@ -466,6 +470,53 @@ def build_patches_917():
     ]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Patches for mail-setting-view — bugfix: disable an unconditional filter
+#
+# Symptom: a forward-all filter (only a redirect action, NO condition) can't be
+# deactivated — un-checking "Active filter" → Save → reopens still checked.
+# Root cause is the Carbonio BACKEND, not the frontend: it deactivates a rule by
+# wrapping it in Sieve `disabled_if <condition> { ... }`. With no condition there
+# is nothing to wrap, so GetFilterRules always returns active:true.
+# Fix: represent a disabled unconditional filter via `trueTest` (Sieve `true`,
+# matches every message — identical behaviour for forward-all):
+#   filterTests:[{condition:"allof",trueTest:[{index:0}]}], active:false
+#   → disabled_if true { redirect :copy "..."; stop; }
+# Two patches:
+#   1. Save layer: a window.__cuFilterFix helper (injected after "use strict";)
+#      injects trueTest into any rule whose filterTests is empty, called from
+#      both ModifyFilterRules and ModifyOutgoingFilterRules.
+#   2. Condition builder G: hide trueTest from the UI so the forward-all filter
+#      shows with no condition rows (no phantom "subject contains…"). It is
+#      self-healing — on the next save G omits trueTest → filterTests is empty
+#      → the helper re-injects it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_patches_settings_filterfix():
+    helper = (
+        'window.__cuFilterFix=window.__cuFilterFix||function(rules){'
+        'try{return(rules||[]).map(function(r){'
+        'if(!r||typeof r!=="object")return r;'
+        'var ft=r.filterTests&&r.filterTests[0];'
+        'var hasTest=ft&&Object.keys(ft).some(function(k){return k!=="condition"});'
+        'if(!hasTest){return Object.assign({},r,{filterTests:[{condition:ft&&ft.condition||"allof",trueTest:[{index:0}]}]})}'
+        'return r})}catch(_){return rules}};'
+    )
+    return [
+        ("filter-toggle: хелпер __cuFilterFix после use strict",
+         '"use strict";(self.webpackChunkcarbonio_mails_ui',
+         '"use strict";' + helper + '(self.webpackChunkcarbonio_mails_ui'),
+        ("filter-toggle: обернуть ModifyFilterRules в __cuFilterFix",
+         '"ModifyFilterRules",{filterRules:[{filterRule:e}]',
+         '"ModifyFilterRules",{filterRules:[{filterRule:(window.__cuFilterFix||function(x){return x})(e)}]'),
+        ("filter-toggle: обернуть ModifyOutgoingFilterRules в __cuFilterFix",
+         '"ModifyOutgoingFilterRules",{filterRules:[{filterRule:e}]',
+         '"ModifyOutgoingFilterRules",{filterRules:[{filterRule:(window.__cuFilterFix||function(x){return x})(e)}]'),
+        ("filter-toggle: скрыть trueTest от билдера условий G",
+         'if("condition"!==a){const n=t[a];(0,o.map)(n,t=>{e.push({...t,testName:a})})}',
+         'if("condition"!==a&&"trueTest"!==a){const n=t[a];(0,o.map)(n,t=>{e.push({...t,testName:a})})}'),
+    ]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Apply helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -535,6 +586,7 @@ def cmd_check():
 
     # bugfixes
     ok917        = PATCH_MARKER_917    in c917
+    okFF         = FF_MARKER_SETTINGS in cSetting and '"trueTest"!==a' in cSetting
 
     print(f"{'✓' if ok388      else '✗'}  chunk 388      {'применён' if ok388      else 'НЕ применён'}: {chunk388}")
     print(f"{'✓' if ok336      else '✗'}  chunk 336      {'применён' if ok336      else 'НЕ применён'}: {chunk336}")
@@ -548,12 +600,13 @@ def cmd_check():
     print(f"{'✓' if okCC336      else '✗'}  color-filter/336      {'применён' if okCC336      else 'НЕ применён'}")
     print(f"{'✓' if okCCFpv      else '✗'}  color-filter/fpv      {'применён' if okCCFpv      else 'НЕ применён'}: {chunkFpv}")
     print(f"{'✓' if ok917        else '✗'}  bugfix/917            {'применён' if ok917        else 'НЕ применён'}: {chunk917}")
+    print(f"{'✓' if okFF         else '✗'}  bugfix/filter-toggle  {'применён' if okFF         else 'НЕ применён'} (отключение безусловного фильтра)")
     okRu = cmd_check_json(RU_JSON_PATH, RU_KEYS, "ru")
     okEn = cmd_check_json(EN_JSON_PATH, EN_KEYS, "en")
 
     return (ok388 and ok336 and okMaxHeight and okSetting and okS7
             and okCCSettings and okCCLocalize and okCC336 and okCCFpv
-            and ok917 and okRu and okEn)
+            and ok917 and okFF and okRu and okEn)
 
 
 def cmd_install():
@@ -604,6 +657,17 @@ def cmd_install():
             print("✓ chunk settings (color-filter локализация) пропатчен")
     else:
         print("color-filter/settings: патч уже применён полностью, пропускаем.")
+
+    # ── bugfix: disable-unconditional-filter (trueTest) on settings chunk ─────
+    cSetting = read(chunkSetting)
+    if FF_MARKER_SETTINGS not in cSetting:
+        print("\nbugfix/filter-toggle: применяем фикс trueTest...")
+        applied_ff = _apply_patches(chunkSetting, build_patches_settings_filterfix(),
+                                     FF_MARKER_SETTINGS, "bugfix/filter-toggle: уже применён.")
+        if applied_ff:
+            print("✓ chunk settings (фикс отключения безусловного фильтра) пропатчен")
+    else:
+        print("bugfix/filter-toggle: патч уже применён, пропускаем.")
 
     # ── create-filter: chunk 388 ──────────────────────────────────────────────
     print()
