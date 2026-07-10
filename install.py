@@ -672,9 +672,12 @@ def build_patches_388_v2():
          # вторая — словарь модулей (как в v1-инъекции).
          '"data-testid":"layout-component"}))}}}]);',
          '"data-testid":"layout-component"}))}}' + NEW_MODULE_V2 + '}}]);'),
-        ("40: Импорт CF",
-         "var x=a(8654),C=a(2765),k=a(7424),A=a(8380),T=a(6750),_=a(1067),M=a(426),S=a(6341),I=a(3932);",
-         "var x=a(8654),C=a(2765),k=a(7424),A=a(8380),T=a(6750),_=a(1067),M=a(426),S=a(6341),I=a(3932),CF=a(9999);"),
+        # CF must be imported in the SAME module as the toolbar component that
+        # calls (0,CF.q) — module 5151. Importing it in a neighbouring module
+        # leaves CF undefined at the call site ("CF is not defined").
+        ("40: Импорт CF в модуль тулбара (5151)",
+         "var n=a(7559),l=a.n(n),r=a(4702),o=a(9627),i=a(4352),s=a(8153),c=a(3983),d=a(2298),m=a(8148),u=a(7196),g=a(2509),p=a(8698);",
+         "var n=a(7559),l=a.n(n),r=a(4702),o=a(9627),i=a(4352),s=a(8153),c=a(3983),d=a(2298),m=a(8148),u=a(7196),g=a(2509),p=a(8698),CF=a(9999);"),
         ("40: Вызов хука в компоненте",
          "}=(0,C.S)({message:e,shouldReplaceHistory:o}),F=(0,k.W)(T,e.tags),L=(0,n.useMemo)(()=>{const e=[",
          "}=(0,C.S)({message:e,shouldReplaceHistory:o}),F=(0,k.W)(T,e.tags),Q=(0,CF.q)(e),L=(0,n.useMemo)(()=>{const e=["),
