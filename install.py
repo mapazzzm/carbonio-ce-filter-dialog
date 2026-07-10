@@ -173,6 +173,12 @@ RU_KEYS = {
         "<bold>{{count}} сообщение</bold> будет обработано в выбранной папке.",
     ("label", "yes"): "Да",
     ("label", "no"):  "Нет",
+    # create-filter: strings referenced by module 9999 (English inline defaults
+    # only, so stock ru.json has no Russian for them → the menu item, the
+    # "filter created" snackbar and the pre-filled filter name showed English)
+    ("action", "create_filter_from_sender"): "Создать фильтр",
+    ("settings", "filter_created"):          "Фильтр создан",
+    ("settings", "filter_name_prefix"):      "Письма от ",
     # color-filter: action label + color picker placeholder
     ("settings", "set_color"):             "Выделять цветом",
     ("settings", "set_color_placeholder"): "Выберите цвет",
@@ -182,6 +188,9 @@ EN_KEYS = {
     # create-filter: buttons missing from en.json
     ("label", "yes"): "Yes",
     ("label", "no"):  "No",
+    ("action", "create_filter_from_sender"): "Create Filter",
+    ("settings", "filter_created"):          "Filter created",
+    ("settings", "filter_name_prefix"):      "Emails from ",
     # color-filter
     ("settings", "set_color"):             "Highlight with color",
     ("settings", "set_color_placeholder"): "Select color",
