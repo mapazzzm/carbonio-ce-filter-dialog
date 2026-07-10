@@ -69,19 +69,41 @@ def _find_version_dirs():
     dirs.sort(key=lambda d: os.path.getmtime(d), reverse=True)
     return dirs
 
+def _find_by_content(needle, label):
+    """mails-ui 1.34.x переименовал числовые чанки — ищем файл по содержимому."""
+    for d in _find_version_dirs():
+        for f in sorted(glob.glob(os.path.join(d, "*.js"))):
+            if ".bak." in f or f.endswith(".map"):
+                continue
+            try:
+                if needle in read(f):
+                    return f
+            except OSError:
+                pass
+    die("Не найден файл с сигнатурой " + label + " в " + MAILS_UI_BASE)
+
+def detect_variant():
+    """v1 = mails-ui 1.31.x (чанки 388/336/917), v2 = 1.34.x (40/946/app)."""
+    for d in _find_version_dirs():
+        if glob.glob(os.path.join(d, "388.*.chunk.js")):
+            return "v1"
+    return "v2"
+
 def find_chunk_388():
     for d in _find_version_dirs():
         chunks = glob.glob(os.path.join(d, "388.*.chunk.js"))
         if chunks:
             return chunks[0]
-    die("Не найден chunk 388.*.chunk.js в " + MAILS_UI_BASE)
+    # 1.34.x: тулбар превью переехал в 40.*.chunk.js
+    return _find_by_content(',n={id:"More",icon:"MoreVertical"', "toolbar (экс-388)")
 
 def find_chunk_336():
     for d in _find_version_dirs():
         chunks = glob.glob(os.path.join(d, "336.*.chunk.js"))
         if chunks:
             return chunks[0]
-    die("Не найден chunk 336.*.chunk.js в " + MAILS_UI_BASE)
+    # 1.34.x: контекстное меню переехало в 946.*.chunk.js
+    return _find_by_content('"ForwardMenu"===e.id', "context-menu (экс-336)")
 
 def find_chunk_settings():
     for d in _find_version_dirs():
@@ -102,7 +124,8 @@ def find_chunk_917():
         chunks = glob.glob(os.path.join(d, "917.*.chunk.js"))
         if chunks:
             return chunks[0]
-    die("Не найден 917.*.chunk.js в " + MAILS_UI_BASE)
+    # 1.34.x: optimistic TAG/UNTAG переехал в главный app.*.js
+    return _find_by_content(".UNTAG&&", "optimistic TAG/UNTAG (экс-917)")
 
 def die(msg):
     print("ОШИБКА:", msg, file=sys.stderr)
@@ -117,8 +140,14 @@ def write(path, content):
         f.write(content)
 
 def backup(path):
+    # суффикс должен быть уникальным: два backup() одного файла в одну секунду
+    # (main-патч + color-патч) иначе перезапишут друг друга
     ts = time.strftime("%Y%m%d%H%M%S")
     dst = path + ".bak." + ts
+    n = 1
+    while os.path.exists(dst):
+        dst = path + ".bak." + ts + "_" + str(n)
+        n += 1
     shutil.copy2(path, dst)
     print(f"  Бэкап: {dst}")
     return dst
@@ -517,6 +546,212 @@ def build_patches_settings_filterfix():
     ]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# V2 builders — mails-ui 1.34.x (Carbonio CE 26.6): чанки перенумерованы
+# (388→40, 336→946, 917→app.*.js), минифицированные имена сменились.
+# Module ids: React 7559, i18next 8153, DS 4702 — НЕ изменились; shell-хуки
+# 7625→7712, settings-модуль 3475→7306 (chunk 949, deps [522,710,665,471,949]),
+# Ae→at, Jy(j)→ge, From-компонент ye→Ge, uuid L.A→fe.A.
+# S7 (локализация имени папки) в v2 НЕ применяется — util VN удалён из сборки.
+# ─────────────────────────────────────────────────────────────────────────────
+
+NEW_MODULE_V2 = (NEW_MODULE
+    .replace("var n=a(7559),s=a(8153),d=a(7625),i=a(4702);",
+             "var n=a(7559),s=a(8153),d=a(7712),i=a(4702);")
+    .replace("a.e(237),a.e(654),a.e(486),a.e(471),a.e(169),a.e(949)",
+             "a.e(522),a.e(710),a.e(665),a.e(471),a.e(949)")
+    .replace("a(3475).Ae", "a(7306).Ae")
+    .replace("a(3475).Jy", "a(7306).Jy"))
+
+def build_patches_settings_v2():
+    head_old = ('at=({onClose:e,onConfirm:t,isIncoming:a})=>{const[d]=(0,c.useTranslation)(),'
+                '[m,u]=(0,n.useState)(""),[g,f]=(0,n.useState)(!1),[b,h]=(0,n.useState)("anyof")')
+    head_new = ('at=({onClose:e,onConfirm:t,isIncoming:a,initialFromEmail:iEmail,initialFilterName:iName})=>'
+                '{const[d]=(0,c.useTranslation)(),'
+                '[m,u]=(0,n.useState)(iName||""),[g,f]=(0,n.useState)(iEmail?!0:!1),[b,h]=(0,n.useState)("anyof")')
+
+    s3_old = ('[w,S]=(0,n.useState)([{filterActions:[{actionKeep:[{}],actionStop:[{}]}],'
+              'active:g,name:m,key:"subject",label:"Subject",filterTests:[{}],index:0,'
+              'comp:l().createElement(De,{t:d,activeIndex:0})}])')
+    s3_new = ('[w,S]=(0,n.useState)(iEmail?[{filterActions:[{actionKeep:[{}],actionStop:[{}]}],'
+              'active:g,name:m,key:"from",label:"From",filterTests:[{condition:b,'
+              'addressTest:[{header:"from",part:"all",stringComparison:"is",value:iEmail}]}],index:0,'
+              'comp:l().createElement(Ge,{t:d,activeIndex:0,defaultValue:{addressTest:[{header:"from",'
+              'part:"all",stringComparison:"is",value:iEmail}]}})}]:[{filterActions:[{actionKeep:[{}],'
+              'actionStop:[{}]}],active:g,name:m,key:"subject",label:"Subject",filterTests:[{}],index:0,'
+              'comp:l().createElement(De,{t:d,activeIndex:0})}])')
+
+    s5_old = '[E,C]=(0,n.useState)([{actionKeep:[{}],id:(0,fe.A)()}])'
+    s5_new = '[E,C]=(0,n.useState)(iEmail?[{actionFileInto:[{folderPath:""}],id:(0,fe.A)()}]:[{actionKeep:[{}],id:(0,fe.A)()}])'
+
+    return [
+        ("settings-v2: Экспорт Ae/Jy из модуля 7306",
+         "a.r(t),a.d(t,{default:()=>Gt})",
+         "a.r(t),a.d(t,{default:()=>Gt,Ae:()=>at,Jy:()=>ge})"),
+        ("settings-v2: props iEmail/iName + активный фильтр",  head_old, head_new),
+        ("settings-v2: Предзаполнить условие From",            s3_old,   s3_new),
+        ("settings-v2: Действие Переместить в папку",          s5_old,   s5_new),
+        ("settings-v2: initialFolder prop к ge",
+         "const ge=({criteria:e,onClose:t})=>",
+         "const ge=({criteria:e,onClose:t,initialFolder:initFld})=>"),
+        ("settings-v2: Pre-select Inbox в ge useState",
+         "[f,b]=(0,n.useState)(),h=f?.n??0",
+         "[f,b]=(0,n.useState)(initFld),h=f?.n??0"),
+    ]
+
+def build_patches_settings_color_v2():
+    cc_le_component = (
+        'cc_le=({value:e,onChange:t})=>{'
+        'const[tcc_]=(0,c.useTranslation)();'
+        'const a_=e?.actionTag?.[0]?.tagName,'
+        'r_=a_&&CC_LABELS.includes(a_)?CC_LABELS.indexOf(a_):-1,'
+        'cc_items=(0,n.useMemo)(()=>CC_COLORS.map((clr,idx)=>({'
+        'label:CC_LABELS[idx],value:idx,'
+        'customComponent:l().createElement(r.Row,{padding:{horizontal:"small"},crossAlignment:"center",height:"fit"},'
+        'l().createElement("div",{style:{width:"0.875rem",height:"0.875rem",borderRadius:"0.1875rem",'
+        'background:clr,flexShrink:0,border:"1px solid rgba(0,0,0,0.15)"}},'
+        '),l().createElement(r.Padding,{left:"small"},l().createElement(r.Text,null,CC_LABELS[idx])))})),[]),'
+        'cc_def=r_>=0&&r_<10?cc_items[r_]:undefined,'
+        'cc_onChg=(0,n.useCallback)(ev=>{'
+        'const tn=CC_LABELS[ev],'
+        'tags=(0,o.Q2)();'
+        'Object.values(tags).some(t=>t.name===tn)||'
+        '(0,d.Dq)("CreateTag",{_jsns:"urn:zimbraMail",tag:{name:tn,color:CC_ZIMBRA_COLORS[ev]??0}}).catch(()=>{});'
+        't({actionTag:[{tagName:tn}]});},[t]);'
+        '(0,n.useEffect)(()=>{'
+        'if(a_&&CC_LABELS.includes(a_)){'
+        'const tags=(0,o.Q2)();'
+        'Object.values(tags).some(tt=>tt.name===a_)||'
+        '(0,d.Dq)("CreateTag",{_jsns:"urn:zimbraMail",tag:{name:a_,color:CC_ZIMBRA_COLORS[CC_LABELS.indexOf(a_)]??0}}).catch(()=>{});}}'
+        ',[]);'
+        'return l().createElement(r.Row,{padding:{right:"small"},minWidth:"12.5rem"},'
+        'l().createElement(r.Select,{label:tcc_("settings.set_color_placeholder","Select color"),background:"gray4",onChange:cc_onChg,'
+        'items:cc_items,defaultSelection:cc_def,"data-testid":"color-select"}))}'
+    )
+
+    old_S1 = 'pe="actionKeep",ve="actionDiscard",Ee="actionFileInto",Ce="actionTag",ye="actionFlag",ke="actionRedirect"'
+    new_S1 = (old_S1 +
+              f',CC="actionColorize",CC_ZIMBRA_COLORS={CC_ZIMBRA_COLORS_JS}'
+              f',CC_COLORS={CC_COLORS_JS},CC_LABELS={CC_LABELS_JS}')
+
+    return [
+        ("color-v2/settings: Константы CC",           old_S1, new_S1),
+        ("color-v2/settings: Компонент cc_le",
+         '"data-testid":"tag-input"})},ze=',
+         '"data-testid":"tag-input"})},' + cc_le_component + ',ze='),
+        ("color-v2/settings: CC в массив Oe",
+         'Oe=[pe,ve,Ee,Ce,ye],Ne=[...Oe,ke]',
+         'Oe=[pe,ve,Ee,Ce,ye,CC],Ne=[...Oe,ke]'),
+        ("color-v2/settings: Детект CC в f",
+         'f=g.find(e=>e in a)??"actionKeep"',
+         'f=("_colorize" in a||CC_LABELS.includes(a?.actionTag?.[0]?.tagName))?CC:(g.find(e=>e in a)??"actionKeep")'),
+        ("color-v2/settings: Ветка CC в рендере E",
+         'E=(y=m,Ee in(C=a)?',
+         'E=(y=m,f===CC?l().createElement(cc_le,{value:a,onChange:y}):Ee in(C=a)?'),
+        ("color-v2/settings: Дефолт [CC]",
+         '[ke]:{actionRedirect:[{a:""}]}}}',
+         '[ke]:{actionRedirect:[{a:""}]},[CC]:{_colorize:""}}}'),
+        ("color-v2/settings: Метка Выделять цветом",
+         '[ke]:t("settings.redirect_to_address","Redirect to address")',
+         '[ke]:t("settings.redirect_to_address","Redirect to address"),[CC]:t("settings.set_color","Highlight with color")'),
+    ]
+
+def build_patches_settings_filterfix_v2():
+    v1 = build_patches_settings_filterfix()
+    # первые 3 патча (хелпер + 2 обёртки Modify*FilterRules) совпадают с v1;
+    # у билдера условий G сменилась только буква lodash-модуля (o.map→s.map)
+    return v1[:3] + [
+        ("filter-toggle-v2: скрыть trueTest от билдера условий",
+         'if("condition"!==a){const n=t[a];(0,s.map)(n,t=>{e.push({...t,testName:a})})}',
+         'if("condition"!==a&&"trueTest"!==a){const n=t[a];(0,s.map)(n,t=>{e.push({...t,testName:a})})}'),
+    ]
+
+def build_patches_388_v2():
+    return [
+        ("40: Добавить module 9999 в chunk",
+         # NEW_MODULE не закрывает тело модуля — первая } хвоста закрывает его,
+         # вторая — словарь модулей (как в v1-инъекции).
+         '"data-testid":"layout-component"}))}}}]);',
+         '"data-testid":"layout-component"}))}}' + NEW_MODULE_V2 + '}}]);'),
+        ("40: Импорт CF",
+         "var x=a(8654),C=a(2765),k=a(7424),A=a(8380),T=a(6750),_=a(1067),M=a(426),S=a(6341),I=a(3932);",
+         "var x=a(8654),C=a(2765),k=a(7424),A=a(8380),T=a(6750),_=a(1067),M=a(426),S=a(6341),I=a(3932),CF=a(9999);"),
+        ("40: Вызов хука в компоненте",
+         "}=(0,C.S)({message:e,shouldReplaceHistory:o}),F=(0,k.W)(T,e.tags),L=(0,n.useMemo)(()=>{const e=[",
+         "}=(0,C.S)({message:e,shouldReplaceHistory:o}),F=(0,k.W)(T,e.tags),Q=(0,CF.q)(e),L=(0,n.useMemo)(()=>{const e=["),
+        ("40: Добавить пункт в массив действий",
+         ',(0,x.A)(P),(0,x.A)(z)].filter(e=>!e.disabled),n={id:"More"',
+         ',(0,x.A)(P),(0,x.A)(z),(0,x.A)(Q)].filter(e=>!e.disabled),n={id:"More"'),
+        ("40: Добавить Q в зависимости useMemo",
+         '},[t,i,m,u,d,h,f,b,E,$,p,w,y,v,A,F,_,M,S,I,R,D,P,z,a]);return l().createElement(r.Row,{mainAlignment:"flex-end"',
+         '},[t,i,m,u,d,h,f,b,E,$,p,w,y,v,A,F,_,M,S,I,R,D,P,z,Q,a]);return l().createElement(r.Row,{mainAlignment:"flex-end"'),
+    ]
+
+def build_patches_336_v2():
+    return [
+        ("946: Добавить module 9999 в chunk",
+         # см. комментарий в build_patches_388_v2 про незакрытое тело модуля
+         "isSharedFolderIncluded:t}}}}]);",
+         "isSharedFolderIncluded:t}}}" + NEW_MODULE_V2 + "}}]);"),
+        ("946: Импорт CF",
+         "var r=a(7559),n=a.n(r),o=a(8153),l=a(5978),i=a(5748),s=a(9826),c=a(9732),d=a(7319),u=a(8751),m=a(4702);",
+         "var r=a(7559),n=a.n(r),o=a(8153),l=a(5978),i=a(5748),s=a(9826),c=a(9732),d=a(7319),u=a(8751),m=a(4702),CF=a(9999);"),
+        ("946: Вызов хука create-filter",
+         "[U]=(0,o.useTranslation)(),Y=(0,r.useMemo)(()=>[",
+         "[U]=(0,o.useTranslation)(),Q=(0,CF.q)(e),Y=(0,r.useMemo)(()=>["),
+        ("946: Добавить пункт в контекстное меню",
+         ',(0,l.A)($),(0,l.A)(B)].filter(e=>!(e.disabled||H&&"ForwardMenu"===e.id))',
+         ',(0,l.A)($),(0,l.A)(B),(0,l.A)(Q)].filter(e=>!(e.disabled||H&&"ForwardMenu"===e.id))'),
+        ("946: Добавить Q в зависимости useMemo",
+         ",[b,v,U,E,A,I,y,x,C,k,T,M,w,z,D,S,R,F,O,L,P,W,$,B,N,H]),G=",
+         ",[b,v,U,E,A,I,y,x,C,k,T,M,w,z,D,S,R,F,O,L,P,W,$,B,N,H,Q]),G="),
+        ("946: maxHeight 100vh для контекст. меню (ue)",
+         'createElement(o.Dropdown,{contextMenu:!0,items:ue,display:"block",style:{width:"100%",height:"4rem"}',
+         'createElement(o.Dropdown,{contextMenu:!0,maxHeight:"100vh",items:ue,display:"block",style:{width:"100%",height:"4rem"}'),
+        ("946: maxHeight 100vh для g-компонента",
+         'createElement(m.Dropdown,{contextMenu:!0,items:e,display:"block",style:{width:"100%",height:"4rem"}',
+         'createElement(m.Dropdown,{contextMenu:!0,maxHeight:"100vh",items:e,display:"block",style:{width:"100%",height:"4rem"}'),
+    ]
+
+def build_patches_336_color_v2():
+    cc_colors_const = f'const CC_COLORS_M={CC_COLORS_JS};const CC_LABELS_M={CC_LABELS_JS};'
+    return [
+        ("color-v2/946: CC_COLORS_M + CC_LABELS_M",
+         'const w=({message:e,selected:t',
+         f'{cc_colors_const}const w=({{message:e,selected:t'),
+        ("color-v2/946: _hlBg фон строки сообщения",
+         '$=(0,r.useMemo)(()=>i?l.noop:u,[i,u]);return n().createElement(o.Container,{mainAlignment:"flex-start",orientation:"horizontal",height:"4rem"},',
+         '$=(0,r.useMemo)(()=>i?l.noop:u,[i,u]);'
+         'const _hlBg=(0,r.useMemo)(()=>{const t=R.find(s=>CC_LABELS_M.includes(s.name));if(!t)return null;const idx=CC_LABELS_M.indexOf(t.name);return idx>=0?CC_COLORS_M[idx]:null},[R]);'
+         'return n().createElement(o.Container,{mainAlignment:"flex-start",orientation:"horizontal",height:"4rem",style:_hlBg?{background:_hlBg}:undefined},'),
+        ("color-v2/946: Скрыть CC тег-иконку (компонент s)",
+         'd=(0,r.useMemo)(()=>t?.length>1?"TagsMoreOutline":"Tag",[t]),u=(0,r.useMemo)(()=>1===t?.length?t?.[0]?.color:void 0,[t]),m=(0,i.nK)(t),g=(0,r.useMemo)(()=>e.tags&&0!==e.tags.length&&""!==e.tags?.[0]&&m,[m,e.tags])',
+         '_t=t?.filter(x=>!CC_LABELS_M.includes(x?.name)),d=(0,r.useMemo)(()=>_t?.length>1?"TagsMoreOutline":"Tag",[_t]),u=(0,r.useMemo)(()=>1===_t?.length?_t?.[0]?.color:void 0,[_t]),m=(0,i.nK)(_t),g=(0,r.useMemo)(()=>_t&&_t.length>0&&m,[m,_t])'),
+        ("color-v2/946: Скрыть CC тег-иконку (компонент w)",
+         'F=(0,k.nK)(R),O=(0,r.useMemo)(()=>e.tags&&0!==e.tags.length&&""!==e.tags?.[0]&&F,[F,e.tags]),L=(0,r.useMemo)(()=>R.length>1?"TagsMoreOutline":"Tag",[R]),P=(0,r.useMemo)(()=>1===R.length?R[0].color:void 0,[R])',
+         '_R=R.filter(x=>!CC_LABELS_M.includes(x?.name)),F=(0,k.nK)(_R),O=(0,r.useMemo)(()=>_R.length>0&&F,[F,_R]),L=(0,r.useMemo)(()=>_R.length>1?"TagsMoreOutline":"Tag",[_R]),P=(0,r.useMemo)(()=>1===_R.length?_R[0].color:void 0,[_R])'),
+    ]
+
+def build_patches_fpv_v2():
+    cc_colors_const = f'const CC_COLORS_L={CC_COLORS_JS};const CC_LABELS_L={CC_LABELS_JS};'
+    return [
+        ("color-v2/fpv: CC_COLORS_L + CC_LABELS_L",
+         'const P=({conversation:e,selected:t',
+         f'{cc_colors_const}const P=({{conversation:e,selected:t'),
+        ("color-v2/fpv: _hlBg фон строки беседы",
+         'S=(0,s.useMemo)(()=>d?I("label.hide","Hide"):I("label.expand","Expand"),[d,I]);return a().createElement(r.Container,{mainAlignment:"flex-start",orientation:"horizontal",height:"4rem"},',
+         'S=(0,s.useMemo)(()=>d?I("label.hide","Hide"):I("label.expand","Expand"),[d,I]);'
+         'const _hlBg=(0,s.useMemo)(()=>{const t=f.find(s=>CC_LABELS_L.includes(s.name));if(!t)return null;const idx=CC_LABELS_L.indexOf(t.name);return idx>=0?CC_COLORS_L[idx]:null},[f]);'
+         'return a().createElement(r.Container,{mainAlignment:"flex-start",orientation:"horizontal",height:"4rem",style:_hlBg?{background:_hlBg}:undefined},'),
+    ]
+
+def build_patches_917_v2():
+    return [
+        ("app: s.tags||[] guard in TAG/UNTAG optimistic update",
+         't===k.qn.TAG&&r?s.tags=[...s.tags,r]:t===k.qn.UNTAG&&r&&(s.tags=(0,l.filter)(s.tags,e=>e!==r))',
+         't===k.qn.TAG&&r?s.tags=[...(s.tags||[]),r]:t===k.qn.UNTAG&&r&&(s.tags=(0,l.filter)(s.tags||[],e=>e!==r))'),
+    ]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Apply helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -558,6 +793,8 @@ def _apply_patches(chunk_path, patches, marker, already_msg):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def cmd_check():
+    variant      = detect_variant()
+    print(f"Вариант сборки mails-ui: {variant}")
     chunk388     = find_chunk_388()
     chunk336     = find_chunk_336()
     chunkSetting = find_chunk_settings()
@@ -573,10 +810,11 @@ def cmd_check():
     ok388      = PATCH_MARKER_388      in c388
     ok336      = PATCH_MARKER_336      in c336
     okSetting  = PATCH_MARKER_SETTINGS in cSetting
-    okJy       = "Jy:()=>j"            in cSetting
+    okJy       = ("Jy:()=>j" in cSetting) or ("Jy:()=>ge" in cSetting)
     okS6b      = "useState)(initFld)"  in cSetting
-    okS7       = PATCH_MARKER_S7       in cSetting
-    okMaxHeight = 'maxHeight:"100vh",items:de' in c336
+    # S7 (локализация имени папки) есть только в v1 — util VN удалён из 1.34.x
+    okS7       = PATCH_MARKER_S7 in cSetting if variant == "v1" else True
+    okMaxHeight = ('maxHeight:"100vh",items:de' in c336) or ('maxHeight:"100vh",items:ue' in c336)
 
     # color-filter
     okCCSettings = CC_MARKER_SETTINGS in cSetting
@@ -585,7 +823,7 @@ def cmd_check():
     okCCFpv      = CC_MARKER_FPV       in cFpv
 
     # bugfixes
-    ok917        = PATCH_MARKER_917    in c917
+    ok917        = (PATCH_MARKER_917 in c917) or ("s.tags||[]" in c917)
     okFF         = FF_MARKER_SETTINGS in cSetting and '"trueTest"!==a' in cSetting
 
     print(f"{'✓' if ok388      else '✗'}  chunk 388      {'применён' if ok388      else 'НЕ применён'}: {chunk388}")
@@ -610,6 +848,8 @@ def cmd_check():
 
 
 def cmd_install():
+    variant      = detect_variant()
+    print(f"Вариант сборки mails-ui: {variant}")
     chunk388     = find_chunk_388()
     chunk336     = find_chunk_336()
     chunkSetting = find_chunk_settings()
@@ -619,7 +859,15 @@ def cmd_install():
     print(f"chunk settings: {chunkSetting}")
     cSetting = read(chunkSetting)
 
-    if PATCH_MARKER_SETTINGS in cSetting and PATCH_MARKER_S7 in cSetting:
+    if variant == "v2":
+        if PATCH_MARKER_SETTINGS in cSetting:
+            print("chunk settings: create-filter v2 уже применён, пропускаем.")
+            appliedSetting = False
+        else:
+            appliedSetting = _apply_patches(chunkSetting, build_patches_settings_v2(),
+                                             PATCH_MARKER_SETTINGS,
+                                             "chunk settings: патч уже применён, пропускаем.")
+    elif PATCH_MARKER_SETTINGS in cSetting and PATCH_MARKER_S7 in cSetting:
         print("chunk settings: create-filter патч уже применён полностью, пропускаем.")
         appliedSetting = False
     elif PATCH_MARKER_SETTINGS in cSetting and PATCH_MARKER_S7 not in cSetting:
@@ -645,7 +893,8 @@ def cmd_install():
     cSetting = read(chunkSetting)
     if CC_MARKER_SETTINGS not in cSetting:
         print("\ncolor-filter/settings: применяем...")
-        applied = _apply_patches(chunkSetting, build_patches_settings_color(),
+        cc_builder = build_patches_settings_color_v2 if variant == "v2" else build_patches_settings_color
+        applied = _apply_patches(chunkSetting, cc_builder(),
                                   CC_MARKER_SETTINGS, "color-filter/settings: уже применён.")
         if applied:
             print("✓ chunk settings (color-filter) пропатчен")
@@ -662,32 +911,35 @@ def cmd_install():
     cSetting = read(chunkSetting)
     if FF_MARKER_SETTINGS not in cSetting:
         print("\nbugfix/filter-toggle: применяем фикс trueTest...")
-        applied_ff = _apply_patches(chunkSetting, build_patches_settings_filterfix(),
+        ff_builder = build_patches_settings_filterfix_v2 if variant == "v2" else build_patches_settings_filterfix
+        applied_ff = _apply_patches(chunkSetting, ff_builder(),
                                      FF_MARKER_SETTINGS, "bugfix/filter-toggle: уже применён.")
         if applied_ff:
             print("✓ chunk settings (фикс отключения безусловного фильтра) пропатчен")
     else:
         print("bugfix/filter-toggle: патч уже применён, пропускаем.")
 
-    # ── create-filter: chunk 388 ──────────────────────────────────────────────
+    # ── create-filter: chunk 388 (v2: 40) ────────────────────────────────────
     print()
-    print(f"chunk 388: {chunk388}")
-    applied388 = _apply_patches(chunk388, build_patches_388(), PATCH_MARKER_388,
-                                 "chunk 388: патч уже применён, пропускаем.")
+    print(f"chunk 388/40: {chunk388}")
+    b388 = build_patches_388_v2 if variant == "v2" else build_patches_388
+    applied388 = _apply_patches(chunk388, b388(), PATCH_MARKER_388,
+                                 "chunk 388/40: патч уже применён, пропускаем.")
     if applied388:
-        print(f"✓ chunk 388 пропатчен")
+        print(f"✓ chunk 388/40 пропатчен")
 
-    # ── create-filter: chunk 336 ──────────────────────────────────────────────
+    # ── create-filter: chunk 336 (v2: 946) ───────────────────────────────────
     print()
-    print(f"chunk 336: {chunk336}")
-    applied336 = _apply_patches(chunk336, build_patches_336(), PATCH_MARKER_336,
-                                 "chunk 336: патч уже применён, пропускаем.")
+    print(f"chunk 336/946: {chunk336}")
+    b336 = build_patches_336_v2 if variant == "v2" else build_patches_336
+    applied336 = _apply_patches(chunk336, b336(), PATCH_MARKER_336,
+                                 "chunk 336/946: патч уже применён, пропускаем.")
     if applied336:
-        print(f"✓ chunk 336 пропатчен")
+        print(f"✓ chunk 336/946 пропатчен")
 
-    # Incremental: maxHeight fix for older installs
+    # Incremental: maxHeight fix for older v1 installs
     c336_now = read(chunk336)
-    if PATCH_MARKER_336 in c336_now and 'maxHeight:"100vh",items:de' not in c336_now:
+    if variant == "v1" and PATCH_MARKER_336 in c336_now and 'maxHeight:"100vh",items:de' not in c336_now:
         print("\nchunk 336: добавляем maxHeight:100vh (фикс скроллбара контекстного меню)...")
         mh_patches = [
             ("336: maxHeight 100vh для контекст. меню (de)",
@@ -706,7 +958,8 @@ def cmd_install():
     c336_now = read(chunk336)
     if CC_MARKER_336 not in c336_now:
         print("\ncolor-filter/336: применяем...")
-        applied = _apply_patches(chunk336, build_patches_336_color(), CC_MARKER_336,
+        bc336 = build_patches_336_color_v2 if variant == "v2" else build_patches_336_color
+        applied = _apply_patches(chunk336, bc336(), CC_MARKER_336,
                                   "color-filter/336: уже применён.")
         if applied:
             print("✓ chunk 336 (color-filter) пропатчен")
@@ -718,7 +971,8 @@ def cmd_install():
     print(f"chunk folder-panel-view: {chunkFpv}")
     cFpv = read(chunkFpv)
     if CC_MARKER_FPV not in cFpv:
-        applied_fpv = _apply_patches(chunkFpv, build_patches_fpv(), CC_MARKER_FPV,
+        bfpv = build_patches_fpv_v2 if variant == "v2" else build_patches_fpv
+        applied_fpv = _apply_patches(chunkFpv, bfpv(), CC_MARKER_FPV,
                                       "color-filter/fpv: уже применён.")
         if applied_fpv:
             print("✓ chunk folder-panel-view (color-filter) пропатчен")
@@ -730,8 +984,10 @@ def cmd_install():
     print()
     print(f"chunk 917 (bugfix): {chunk917}")
     c917 = read(chunk917)
-    if PATCH_MARKER_917 not in c917:
-        applied_917 = _apply_patches(chunk917, build_patches_917(), PATCH_MARKER_917,
+    marker917 = "s.tags||[]" if variant == "v2" else PATCH_MARKER_917
+    if marker917 not in c917:
+        b917 = build_patches_917_v2 if variant == "v2" else build_patches_917
+        applied_917 = _apply_patches(chunk917, b917(), marker917,
                                       "bugfix/917: уже применён.")
         if applied_917:
             print("✓ chunk 917 (bugfix i.tags) пропатчен")
