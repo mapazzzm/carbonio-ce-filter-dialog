@@ -605,6 +605,12 @@ def build_patches_settings_v2():
         ("settings-v2: Pre-select Inbox в ge useState",
          "[f,b]=(0,n.useState)(),h=f?.n??0",
          "[f,b]=(0,n.useState)(initFld),h=f?.n??0"),
+        # S7 (folder-name localisation): the VN helper is gone in 1.34, so
+        # translate via the folders.* i18n keys with the dialog's own `a`
+        # (useTranslation). Unknown/user folders fall back to the path.
+        ("settings-v2: Локализовать имя папки в чипе Apply-диалога",
+         '{label:f.absFolderPath,hasAvatar:!0',
+         '{label:a("folders."+(f.name||"").toLowerCase(),f.absFolderPath),hasAvatar:!0'),
     ]
 
 def build_patches_settings_color_v2():
@@ -824,8 +830,9 @@ def cmd_check():
     okSetting  = PATCH_MARKER_SETTINGS in cSetting
     okJy       = ("Jy:()=>j" in cSetting) or ("Jy:()=>ge" in cSetting)
     okS6b      = "useState)(initFld)"  in cSetting
-    # S7 (локализация имени папки) есть только в v1 — util VN удалён из 1.34.x
-    okS7       = PATCH_MARKER_S7 in cSetting if variant == "v1" else True
+    # S7 (локализация имени папки в чипе): v1 через util VN, v2 через folders.* i18n
+    okS7       = (PATCH_MARKER_S7 in cSetting) if variant == "v1" \
+                 else ('folders."+(f.name' in cSetting)
     okMaxHeight = ('maxHeight:"100vh",items:de' in c336) or ('maxHeight:"100vh",items:ue' in c336)
 
     # color-filter
