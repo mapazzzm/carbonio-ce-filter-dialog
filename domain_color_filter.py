@@ -60,7 +60,7 @@ def get_current_script(domain):
 
 
 def set_script(domain, script):
-    import tempfile, os
+    import os
     shfile = f"/tmp/dcf_{domain.replace('.', '_')}.sh"
     valfile = f"/tmp/dcf_{domain.replace('.', '_')}_val.txt"
     with open(shfile, "w", encoding="utf-8") as f:
